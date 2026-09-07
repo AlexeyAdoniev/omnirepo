@@ -1,0 +1,17 @@
+{
+	"folders": [
+		{
+			"path": "../../ddd"
+		},
+		{
+			"path": ".."
+		},
+		{
+			"path": "../../.codex"
+		},
+		{
+			"path": "../../distribution-system"
+		}
+	],
+	"settings": {}
+}
