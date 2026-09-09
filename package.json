@@ -24,7 +24,10 @@
     "build": "tsc -p tsconfig.json",
     "clean": "rm -rf dist",
     "lint": "eslint .",
-    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run",
+    "test:unit": "vitest run test/unit",
+    "test:integration": "vitest run test/integration --passWithNoTests",
+    "typecheck": "tsc -p tsconfig.test.json",
     "dev": "yarn build && node dist/index.js"
   },
   "devDependencies": {
@@ -32,9 +35,10 @@
     "@typescript-eslint/eslint-plugin": "^8.69.0",
     "@typescript-eslint/parser": "^8.69.0",
     "eslint": "^10.8.1",
-    "typescript": "^5.9.3"
-  },
-  "dependencies": {
+    "typescript": "^5.9.3",
+    "vite": "6.4.3",
+    "vitest": "4.1.11",
     "mongoose": "^9.9.4"
-  }
+  },
+  "dependencies": {}
 }

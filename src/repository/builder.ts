@@ -1,0 +1,60 @@
+import type {
+  Cache,
+  DegradationPolicy,
+  Storage,
+  WithId,
+} from '../types.js';
+import {Repository} from './Repository.js';
+
+export class RepositoryBuilder<Entity extends WithId> {
+  storage?: Storage<Entity>;
+  cache?: Cache<Entity>;
+  fallbackCache?: Cache<Entity>;
+  degradationPolicy?: DegradationPolicy;
+
+  setStorage(storage: Storage<Entity>) {
+    this.storage = storage;
+    return this;
+  }
+
+  setCache(cache: Cache<Entity>) {
+    this.cache = cache;
+    return this;
+  }
+
+  setFallbackCache(cache: Cache<Entity>) {
+    this.fallbackCache = cache;
+    return this;
+  }
+
+  setDegradationPolicy(policy: DegradationPolicy) {
+    this.degradationPolicy = policy;
+    return this;
+  }
+
+  build(): Repository<Entity> {
+    if (!this.storage) {
+      throw new Error('Storage is required');
+    }
+
+    if (!this.cache) {
+      throw new Error('Cache is required');
+    }
+
+    if (this.degradationPolicy === 'fallback' && !this.fallbackCache) {
+      throw new Error('Fallback cache is required for fallback degradation policy');
+    }
+
+    const repository = new Repository<Entity>(this.storage, this.cache);
+
+    if (this.degradationPolicy !== undefined) {
+      repository.setDegradationPolicy(this.degradationPolicy);
+    }
+
+    if (this.fallbackCache !== undefined) {
+      repository.setFallbackCache(this.fallbackCache);
+    }
+
+    return repository;
+  }
+}
