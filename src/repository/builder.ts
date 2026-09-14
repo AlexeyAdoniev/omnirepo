@@ -9,8 +9,9 @@ import {Repository} from './Repository.js';
 export class RepositoryBuilder<Entity extends WithId> {
   storage?: Storage<Entity>;
   cache?: Cache<Entity>;
-  fallbackCache?: Cache<Entity>;
-  degradationPolicy?: DegradationPolicy;
+  fallbackCache?: Cache<Entity> | undefined;
+  degradationPolicy?: DegradationPolicy | undefined;
+  maximumEntityCount?: number | undefined;
 
   setStorage(storage: Storage<Entity>) {
     this.storage = storage;
@@ -24,6 +25,11 @@ export class RepositoryBuilder<Entity extends WithId> {
 
   setFallbackCache(cache: Cache<Entity>) {
     this.fallbackCache = cache;
+    return this;
+  }
+
+  setMaximumEntityCount(maximumEntityCount: number) {
+    this.maximumEntityCount = maximumEntityCount;
     return this;
   }
 
@@ -45,7 +51,7 @@ export class RepositoryBuilder<Entity extends WithId> {
       throw new Error('Fallback cache is required for fallback degradation policy');
     }
 
-    const repository = new Repository<Entity>(this.storage, this.cache);
+    const repository = new Repository<Entity>(this.storage, this.cache, this.maximumEntityCount);
 
     if (this.degradationPolicy !== undefined) {
       repository.setDegradationPolicy(this.degradationPolicy);

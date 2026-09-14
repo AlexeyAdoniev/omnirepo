@@ -11,6 +11,10 @@ export class InMemoryCache<Entity> implements Cache<Entity> {
     return this.entries.get(key) ?? null;
   }
 
+  async set(key: string, value: Entity): Promise<void> {
+    this.entries.set(key, value);
+  }
+
   async delete(key: string): Promise<void> {
     this.entries.delete(key);
   }
@@ -23,7 +27,7 @@ export class InMemoryCache<Entity> implements Cache<Entity> {
     return new Map(this.entries);
   }
 
-  async set(data: Map<string, Entity>): Promise<void> {
+  async setAll(data: Map<string, Entity>): Promise<void> {
     this.entries.clear();
 
     for (const [key, value] of data) {

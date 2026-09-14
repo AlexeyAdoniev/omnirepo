@@ -31,15 +31,13 @@ describe('Repository fallback cache', () => {
       .setFallbackCache(fallbackCache)
       .build();
 
-    vi.spyOn(console, 'error').mockImplementation(() => {});
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
 
     const firstResult = await repository.findById(String(id));
     const secondResult = await repository.findById(String(id));
 
     expect(firstResult).toEqual(storedUser);
-    expect(secondResult).toEqual(cachedUser);
-    await new Promise(resolve => setTimeout(resolve, 50_000));
-    //expect(consoleError).toHaveBeenCalledOnce();
-    //consoleError.mockRestore();
+    expect(secondResult).toEqual(storedUser);
+    expect(consoleError).toHaveBeenCalledOnce();
   }, 10_000);
 });
