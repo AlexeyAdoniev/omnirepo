@@ -1,7 +1,8 @@
 export {Repository} from './repository/Repository.js';
 export {RepositoryBuilder} from './repository/builder.js';
-export {InMemoryCache} from './stores/InMemoryCache.js';
+export {InMemoryMapCache} from './stores/InMemoryMapCache.js';
 export {InMemoryStorage} from './stores/InMemoryStorage.js';
+export {RedisHashCache} from './stores/RedisHashCache.js';
 
 export type {
   Cache,
@@ -10,3 +11,8 @@ export type {
   Storage,
   WithId,
 } from './types.js';
+
+export type {
+  RedisHashCacheArgs,
+  RedisHashCacheClient,
+} from './stores/RedisHashCache.js';

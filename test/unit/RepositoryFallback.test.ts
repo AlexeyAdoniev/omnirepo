@@ -1,7 +1,7 @@
 import {Types} from 'mongoose';
 import {describe, expect, it, vi} from 'vitest';
 import {RepositoryBuilder} from '../../src/repository/builder.js';
-import {InMemoryCache} from '../../src/stores/InMemoryCache.js';
+import {InMemoryMapCache} from '../../src/stores/InMemoryMapCache.js';
 import {InMemoryStorage} from '../../src/stores/InMemoryStorage.js';
 
 
@@ -10,7 +10,7 @@ interface User {
   name: string;
 }
 
-class BrokenInMemoryCache<Entity> extends InMemoryCache<Entity> {
+class BrokenInMemoryMapCache<Entity> extends InMemoryMapCache<Entity> {
   override async get(): Promise<Entity | null> {
     throw new Error('Cache is broken');
   }
@@ -21,12 +21,12 @@ describe('Repository fallback cache', () => {
     const id = new Types.ObjectId();
     const storedUser: User = {_id: id, name: 'alex'};
     const cachedUser: User = {_id: id, name: 'alex2'};
-    const fallbackCache = new InMemoryCache<User>(
+    const fallbackCache = new InMemoryMapCache<User>(
       new Map([[String(id), cachedUser]]),
     );
     const repository = new RepositoryBuilder<User>()
       .setStorage(new InMemoryStorage([storedUser]))
-      .setCache(new BrokenInMemoryCache())
+      .setCache(new BrokenInMemoryMapCache())
       .setDegradationPolicy('fallback')
       .setFallbackCache(fallbackCache)
       .build();

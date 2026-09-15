@@ -1,6 +1,6 @@
-import type {Cache} from "../types.js";
+import type {Cache} from '../types.js';
 
-export class InMemoryCache<Entity> implements Cache<Entity> {
+export class InMemoryMapCache<Entity> implements Cache<Entity> {
   private readonly entries: Map<string, Entity>;
 
   constructor(initialData?: ReadonlyMap<string, Entity>) {
