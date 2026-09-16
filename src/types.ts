@@ -4,7 +4,7 @@ export interface WithId {
 
 export type Nullable<T> = T | null;
 
-export type DegradationPolicy =  'fallback' | 'throw';
+export type DegradationPolicy = 'fallback' | 'throw';
 
 export interface FindOptions {
   limit?: number;

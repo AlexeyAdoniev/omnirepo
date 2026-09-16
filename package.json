@@ -1,7 +1,7 @@
 {
   "name": "omnirepo",
   "version": "0.1.0",
-  "description": "TypeScript library template for a repository abstraction with pluggable stores and MongoDB persistence.",
+  "description": "TypeScript repository abstraction with pluggable storage and cache adapters.",
   "license": "MIT",
   "private": true,
   "type": "module",

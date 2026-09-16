@@ -5,8 +5,7 @@ import type {
   Storage,
   WithId,
 } from '../types.js';
-import { mapEntities } from '../helpers.js';
-
+import {chain, mapEntities} from '../helpers.js';
 
 class BaseRepository<Entity extends WithId> extends EventTarget {
   private degradationPolicy: DegradationPolicy | undefined;
@@ -20,22 +19,19 @@ class BaseRepository<Entity extends WithId> extends EventTarget {
     super();
   }
 
-  setFallbackCache(cache: Cache<Entity>) {
+  setFallbackCache(cache: Cache<Entity>): void {
     this.fallbackCache = cache;
   }
 
-  setDegradationPolicy(policy: DegradationPolicy) {
+  setDegradationPolicy(policy: DegradationPolicy): void {
     this.degradationPolicy = policy;
   }
 
-
-
-  private degradateWithFallbackCache(_error: unknown) {
-      if (this.fallbackCache) {
-        const cache = this.cache;
-        this.cache = this.fallbackCache;
-        this.fallbackCache = cache;
-      }
+  private activateFallbackCache(): void {
+    if (this.fallbackCache) {
+      this.cache = this.fallbackCache;
+      this.fallbackCache = undefined;
+    }
   }
 
   protected async runCacheOperation<T>(
@@ -48,7 +44,7 @@ class BaseRepository<Entity extends WithId> extends EventTarget {
 
       switch (this.degradationPolicy) {
         case 'fallback': {
-          this.degradateWithFallbackCache(error);
+          this.activateFallbackCache();
           return null;
         }
         case 'throw':
@@ -60,16 +56,19 @@ class BaseRepository<Entity extends WithId> extends EventTarget {
   }
 
   protected async safeLoad(query: Partial<Entity> = {}): Promise<Entity[]> {
-     if (!this.maximumEntityCount) {
+    if (this.maximumEntityCount === undefined) {
       throw new Error('Cache warm-up failed: Maximum entity count is not defined');
     }
-    const count  = await this.storage.count();
-  
+
+    const count = await this.storage.count();
+
     if (count > this.maximumEntityCount) {
       throw new Error('Cache warm-up failed: Entity count exceeds maximum');
     }
 
-    const entities = await this.storage.find(query, { limit: this.maximumEntityCount });
+    const entities = await this.storage.find(query, {
+      limit: this.maximumEntityCount,
+    });
 
     if (entities.length > this.maximumEntityCount) {
       throw new Error('Cache warm-up failed: Retrieved entity count exceeds maximum');
@@ -78,16 +77,26 @@ class BaseRepository<Entity extends WithId> extends EventTarget {
     return entities;
   }
 
+  protected async enrichEntities(entities: Entity[]): Promise<Entity[]> {
+    //throw new Error('enrichEntities method must be implemented in the subclass');
+    return entities;
+  }
+
   async warmUpCache(query: Partial<Entity> = {}): Promise<void> {
-
-    const entities = await this.safeLoad(query);
-
-    await this.runCacheOperation(cache => cache.setAll(mapEntities(entities)));
+    await chain(this.safeLoad(query))
+      .next(entities => this.enrichEntities(entities))
+      .aggregate(mapEntities)
+      .tap(entities =>{
+        console.log(entities, 'entities');
+        this.runCacheOperation(cache => cache.setAll(entities));
+      });
+      // .catch(error => {
+      //   console.error('Warm-up cache operation failed:', error);
+      // });
   }
 }
 
 class Repository<Entity extends WithId> extends BaseRepository<Entity> {
-
   async all(): Promise<Map<string, Entity> | null> {
     const cached = await this.runCacheOperation(cache => cache.getAll());
 
@@ -100,39 +109,43 @@ class Repository<Entity extends WithId> extends BaseRepository<Entity> {
     await this.runCacheOperation(cache => cache.setAll(entitiesMap));
     return entitiesMap;
   }
-  
+
   async findById(id: string): Promise<Nullable<Entity>> {
-  
-      const cached = await this.runCacheOperation(cache => cache.get(id));
-    
-      if (cached) {
-        return cached;
-      }
+    const cached = await this.runCacheOperation(cache => cache.get(id));
 
-      const entity = await this.storage.findById(id);
+    if (cached) {
+      return cached;
+    }
 
-      if (entity) {
-        await this.runCacheOperation(cache => cache.set(id, entity));
-      };
+    const entity = await this.storage.findById(id);
 
-      return entity;
+    if (entity) {
+      await this.runCacheOperation(cache => cache.set(id, entity));
+    }
+
+    return entity;
   }
 
-  async updateById(id: string, updates: Partial<Entity>): Promise<Nullable<Entity>> {
+  async updateById(
+    id: string,
+    updates: Partial<Entity>,
+  ): Promise<Nullable<Entity>> {
     const entity = await this.storage.updateById(id, updates);
     if (entity) {
-       await this.runCacheOperation(cache => cache.set(id, entity));
+      await this.runCacheOperation(cache => cache.set(id, entity));
     }
     return entity;
   }
 
   async insert(entity: Entity): Promise<Nullable<Entity>> {
     const inserted = await this.storage.insert(entity);
-    if (!inserted?._id) {
+    if (inserted === null) {
       return null;
     }
-    
-    await this.runCacheOperation(cache => cache.set(String(inserted._id), entity));
+
+    await this.runCacheOperation(cache =>
+      cache.set(String(inserted._id), inserted),
+    );
 
     return inserted;
   }

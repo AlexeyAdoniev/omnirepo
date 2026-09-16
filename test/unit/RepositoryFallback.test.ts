@@ -39,5 +39,6 @@ describe('Repository fallback cache', () => {
     expect(firstResult).toEqual(storedUser);
     expect(secondResult).toEqual(storedUser);
     expect(consoleError).toHaveBeenCalledOnce();
+    consoleError.mockRestore();
   }, 10_000);
 });

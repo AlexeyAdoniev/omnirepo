@@ -19,4 +19,15 @@ describe('RepositoryBuilder', () => {
       'Fallback cache is required for fallback degradation policy',
     );
   });
+
+  it.each([-1, 1.5, Number.NaN, Number.POSITIVE_INFINITY])(
+    'rejects an invalid maximum entity count of %s',
+    maximumEntityCount => {
+      const builder = new RepositoryBuilder<Entity>();
+
+      expect(() => builder.setMaximumEntityCount(maximumEntityCount)).toThrow(
+        'Maximum entity count must be a non-negative integer',
+      );
+    },
+  );
 });
