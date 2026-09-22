@@ -1,9 +1,11 @@
 import type { WithId } from './types.js';
 
+
+// abstraction for chaining asynchronous operations and handling their results
 export class Chain<Value> {
   constructor(private readonly promise: Promise<Value>) {}
 
-  aggregate<NextValue>(
+  map<NextValue>(
     transform: (value: Value) => NextValue,
   ): Chain<NextValue> {
     return new Chain(
@@ -17,11 +19,17 @@ export class Chain<Value> {
     return new Chain(this.promise.then(transform));
   }
 
-  tap(effect: (value: Value) => unknown): Promise<Value> {
+  execute(effect: (value: Value) => unknown): Promise<Value> {
     return this.promise.then(async value => {
       await effect(value);
       return value;
     });
+  }
+
+  catch<RecoveredValue>(
+    handler: (error: unknown) => RecoveredValue | Promise<RecoveredValue>,
+  ): Chain<Value | RecoveredValue> {
+    return new Chain(this.promise.catch(handler));
   }
 }
 

@@ -8,6 +8,7 @@ export type {
   Cache,
   DegradationPolicy,
   FindOptions,
+  Logger,
   Nullable,
   Storage,
   WithId,

@@ -6,6 +6,11 @@ export type Nullable<T> = T | null;
 
 export type DegradationPolicy = 'fallback' | 'throw';
 
+export interface Logger {
+  error(message: string, error?: unknown): void;
+  info(message: string): void;
+}
+
 export interface FindOptions {
   limit?: number;
   skip?: number;

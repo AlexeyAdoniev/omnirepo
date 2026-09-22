@@ -1,6 +1,7 @@
 import type {
   Cache,
   DegradationPolicy,
+  Logger,
   Storage,
   WithId,
 } from '../types.js';
@@ -11,6 +12,7 @@ export class RepositoryBuilder<Entity extends WithId> {
   cache?: Cache<Entity>;
   fallbackCache?: Cache<Entity> | undefined;
   degradationPolicy?: DegradationPolicy | undefined;
+  logger?: Logger | undefined;
   maximumEntityCount?: number | undefined;
 
   setStorage(storage: Storage<Entity>): this {
@@ -42,6 +44,11 @@ export class RepositoryBuilder<Entity extends WithId> {
     return this;
   }
 
+  setLogger(logger: Logger): this {
+    this.logger = logger;
+    return this;
+  }
+
   build(): Repository<Entity> {
     if (!this.storage) {
       throw new Error('Storage is required');
@@ -63,6 +70,10 @@ export class RepositoryBuilder<Entity extends WithId> {
 
     if (this.degradationPolicy !== undefined) {
       repository.setDegradationPolicy(this.degradationPolicy);
+    }
+
+    if (this.logger !== undefined) {
+      repository.setLogger(this.logger);
     }
 
     if (this.fallbackCache !== undefined) {

@@ -1,15 +1,22 @@
 import type {
   Cache,
   DegradationPolicy,
+  Logger,
   Nullable,
   Storage,
   WithId,
 } from '../types.js';
 import {chain, mapEntities} from '../helpers.js';
 
+const SILENT_LOGGER: Logger = {
+  error: () => {},
+  info: () => {},
+};
+
 class BaseRepository<Entity extends WithId> extends EventTarget {
   private degradationPolicy: DegradationPolicy | undefined;
   private fallbackCache: Cache<Entity> | undefined;
+  private logger: Logger = SILENT_LOGGER;
 
   constructor(
     protected readonly storage: Storage<Entity>,
@@ -27,6 +34,10 @@ class BaseRepository<Entity extends WithId> extends EventTarget {
     this.degradationPolicy = policy;
   }
 
+  setLogger(logger: Logger): void {
+    this.logger = logger;
+  }
+
   private activateFallbackCache(): void {
     if (this.fallbackCache) {
       this.cache = this.fallbackCache;
@@ -40,7 +51,7 @@ class BaseRepository<Entity extends WithId> extends EventTarget {
     try {
       return await request(this.cache);
     } catch (error) {
-      console.error('Cache operation failed:', error);
+      this.logger.error('Cache operation failed', error);
 
       switch (this.degradationPolicy) {
         case 'fallback': {
@@ -78,21 +89,20 @@ class BaseRepository<Entity extends WithId> extends EventTarget {
   }
 
   protected async enrichEntities(entities: Entity[]): Promise<Entity[]> {
-    //throw new Error('enrichEntities method must be implemented in the subclass');
     return entities;
   }
 
   async warmUpCache(query: Partial<Entity> = {}): Promise<void> {
     await chain(this.safeLoad(query))
       .next(entities => this.enrichEntities(entities))
-      .aggregate(mapEntities)
-      .tap(entities =>{
-        console.log(entities, 'entities');
+      .map(mapEntities)
+      .catch(error => {
+        this.logger.error('Warm-up cache operation failed', error);
+        throw error;
+      })
+      .execute(entities =>{
         this.runCacheOperation(cache => cache.setAll(entities));
       });
-      // .catch(error => {
-      //   console.error('Warm-up cache operation failed:', error);
-      // });
   }
 }
 
@@ -104,10 +114,9 @@ class Repository<Entity extends WithId> extends BaseRepository<Entity> {
       return cached;
     }
 
-    const entities = await this.safeLoad();
-    const entitiesMap = mapEntities(entities);
-    await this.runCacheOperation(cache => cache.setAll(entitiesMap));
-    return entitiesMap;
+    return chain(this.safeLoad())
+      .map(mapEntities)
+      .execute(entities => this.runCacheOperation(cache => cache.setAll(entities)));
   }
 
   async findById(id: string): Promise<Nullable<Entity>> {
