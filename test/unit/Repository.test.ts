@@ -2,6 +2,7 @@ import {describe, expect, it, vi} from 'vitest';
 import {RepositoryBuilder} from '../../src/repository/builder.js';
 import {InMemoryMapCache} from '../../src/stores/InMemoryMapCache.js';
 import {InMemoryStorage} from '../../src/stores/InMemoryStorage.js';
+import { Repository } from '../../src/repository/Repository.js';
 
 interface Entity {
   _id: number;
@@ -18,7 +19,7 @@ class NormalizingStorage extends InMemoryStorage<Entity> {
 describe('Repository', () => {
   it('caches the entity returned by storage after an insert', async () => {
     const cache = new InMemoryMapCache<Entity>();
-    const repository = new RepositoryBuilder<Entity>()
+    const repository = new RepositoryBuilder<Entity>(Repository)
       .setStorage(new NormalizingStorage())
       .setCache(cache)
       .build();
@@ -30,7 +31,7 @@ describe('Repository', () => {
   });
 
   it('allows an empty repository when the maximum entity count is zero', async () => {
-    const repository = new RepositoryBuilder<Entity>()
+    const repository = new RepositoryBuilder<Entity>(Repository)
       .setStorage(new InMemoryStorage<Entity>())
       .setCache(new InMemoryMapCache<Entity>())
       .setMaximumEntityCount(0)
@@ -46,7 +47,7 @@ describe('Repository', () => {
     }));
     const storage = new InMemoryStorage<Entity>(entities);
     const cache = new InMemoryMapCache<Entity>();
-    const builder = new RepositoryBuilder<Entity>()
+    const builder = new RepositoryBuilder<Entity>(Repository)
       .setStorage(storage)
       .setCache(cache);
 

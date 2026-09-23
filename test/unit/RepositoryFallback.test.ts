@@ -3,6 +3,7 @@ import {describe, expect, it, vi} from 'vitest';
 import {RepositoryBuilder} from '../../src/repository/builder.js';
 import {InMemoryMapCache} from '../../src/stores/InMemoryMapCache.js';
 import {InMemoryStorage} from '../../src/stores/InMemoryStorage.js';
+import { Repository } from '../../src/repository/Repository.js';
 
 
 interface User {
@@ -20,7 +21,7 @@ describe('Repository fallback cache', () => {
   it('is silent when no logger is configured', async () => {
     const id = new Types.ObjectId();
     const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
-    const repository = new RepositoryBuilder<User>()
+    const repository = new RepositoryBuilder<User>(Repository)
       .setStorage(new InMemoryStorage([{_id: id, name: 'alex'}]))
       .setCache(new BrokenInMemoryMapCache())
       .build();
@@ -42,7 +43,7 @@ describe('Repository fallback cache', () => {
       new Map([[String(id), cachedUser]]),
     );
     const logger = {error: vi.fn(), info: vi.fn()};
-    const repository = new RepositoryBuilder<User>()
+    const repository = new RepositoryBuilder<User>(Repository)
       .setStorage(new InMemoryStorage([storedUser]))
       .setCache(new BrokenInMemoryMapCache())
       .setDegradationPolicy('fallback')

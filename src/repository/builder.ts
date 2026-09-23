@@ -7,13 +7,31 @@ import type {
 } from '../types.js';
 import {Repository} from './Repository.js';
 
-export class RepositoryBuilder<Entity extends WithId> {
+type RepositoryConstructor<
+  Entity extends WithId,
+  RepositoryType extends Repository<Entity>,
+> = new (
+  storage: Storage<Entity>,
+  cache: Cache<Entity>,
+  maximumEntityCount?: number,
+) => RepositoryType;
+
+
+
+export class RepositoryBuilder<
+  Entity extends WithId,
+  RepositoryType extends Repository<Entity> = Repository<Entity>,
+> {
   storage?: Storage<Entity>;
   cache?: Cache<Entity>;
   fallbackCache?: Cache<Entity> | undefined;
   degradationPolicy?: DegradationPolicy | undefined;
   logger?: Logger | undefined;
   maximumEntityCount?: number | undefined;
+
+  constructor(
+    private readonly RepositoryClass: RepositoryConstructor<Entity, RepositoryType>
+  ) {}
 
   setStorage(storage: Storage<Entity>): this {
     this.storage = storage;
@@ -49,7 +67,7 @@ export class RepositoryBuilder<Entity extends WithId> {
     return this;
   }
 
-  build(): Repository<Entity> {
+  build(): RepositoryType {
     if (!this.storage) {
       throw new Error('Storage is required');
     }
@@ -62,7 +80,7 @@ export class RepositoryBuilder<Entity extends WithId> {
       throw new Error('Fallback cache is required for fallback degradation policy');
     }
 
-    const repository = new Repository<Entity>(
+    const repository = new this.RepositoryClass(
       this.storage,
       this.cache,
       this.maximumEntityCount,
