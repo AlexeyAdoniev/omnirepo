@@ -1,32 +1,15 @@
+import {Repository} from '../../src/repository/Repository.js';
 import type {RedisHashCacheClient} from '../../src/stores/RedisHashCache.js';
 import type {Storage, FindOptions, Nullable} from '../../src/types.js';
-import RedisStore from './redisStore.js';
+import RedisStore from './redis.js';
 import type {Model, UpdateQuery} from 'mongoose';
-import {Schema, Types, model} from 'mongoose';
-import connectMongo from './mongoConnector.js';
+import { Types} from 'mongoose';
+import connectMongo, { UserModel, User} from './mongo.js';
 import {config} from 'dotenv';
+import assert from 'node:assert/strict'
 config();
 
-interface User {
-  _id: Types.ObjectId;
-  name: string;
-  email: string;
-}
 
-const userSchema = new Schema<User>({
-  name: {
-    type: String,
-    required: true,
-  },
-  email: {
-    type: String,
-    required: true,
-  },
-}, {
-  versionKey: false,
-});
-
-const UserModel = model<User>('User', userSchema);
 
 class Redis implements RedisHashCacheClient {
   private readonly redis: RedisStore;
@@ -72,7 +55,7 @@ class Redis implements RedisHashCacheClient {
   }
 }
 
-export class MongoStorage<Entity extends {_id: Types.ObjectId}>
+ class MongoStorage<Entity extends {_id: Types.ObjectId}>
   implements Storage<Entity>
 {
   constructor(private readonly model: Model<Entity>) {}
@@ -126,6 +109,10 @@ export class MongoStorage<Entity extends {_id: Types.ObjectId}>
   }
 }
 
+class UserRepository extends Repository<User> {
+
+}
+
 (async () => {
   if (!process.env.REDIS_URL) {
     throw new Error('REDIS_URL missing');
@@ -136,7 +123,7 @@ export class MongoStorage<Entity extends {_id: Types.ObjectId}>
   }
 
   const redis = new Redis(process.env.REDIS_URL);
-  console.log(await redis.ping() === 'PONG', 'redis check');
+  assert(await redis.ping() === 'PONG', 'redis check');
 
   const mongoConnection = await connectMongo(process.env.MONGODB_URI);
 
@@ -149,15 +136,19 @@ export class MongoStorage<Entity extends {_id: Types.ObjectId}>
   });
   const foundUser = await userStore.findById(String(userId));
 
-  console.log(insertedUser?._id.equals(userId) === true, 'insert user check');
-  console.log(foundUser?.email === 'alex@example.com', 'findById user check');
+  assert(insertedUser?._id.equals(userId) === true, 'insert user check');
+  assert(foundUser?.email === insertedUser.email, 'findById user check');
 
+
+
+
+  console.log('finished check');
   await mongoConnection.close();
   redis.close();
 })();
 
 
-export default Redis;
+export default {};
 
 //  docker build -t omnirepo-example .
 // docker run --rm -p 27017:27017 -p 6379:6379 omnirepo-example

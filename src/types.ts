@@ -34,3 +34,7 @@ export interface Storage<Entity extends WithId> {
   insert(entity: Entity): Promise<Nullable<Entity>>;
   deleteById(id: string): Promise<Nullable<Entity>>;
 }
+
+export type Flatten<T> = {
+  [K in keyof T]: T[K];
+};
