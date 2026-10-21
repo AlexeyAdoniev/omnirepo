@@ -1,10 +1,13 @@
 import {Repository} from '../../src/repository/Repository.js';
+import {RepositoryBuilder} from '../../src/repository/builder.js';
+import {RedisHashCache} from '../../src/stores/RedisHashCache.js';
 import type {RedisHashCacheClient} from '../../src/stores/RedisHashCache.js';
 import type {Storage, FindOptions, Nullable} from '../../src/types.js';
 import RedisStore from './redis.js';
 import type {Model, UpdateQuery} from 'mongoose';
 import { Types} from 'mongoose';
-import connectMongo, { UserModel, User} from './mongo.js';
+import connectMongo, {UserModel} from './mongo.js';
+import type {User} from './mongo.js';
 import {config} from 'dotenv';
 import assert from 'node:assert/strict'
 config();
@@ -122,29 +125,59 @@ class UserRepository extends Repository<User> {
     throw new Error('MONGODB_URI missing');
   }
 
-  const redis = new Redis(process.env.REDIS_URL);
-  assert(await redis.ping() === 'PONG', 'redis check');
+  const redisClient = new Redis(process.env.REDIS_URL);
+  assert(await redisClient.ping() === 'PONG', 'redis check');
 
   const mongoConnection = await connectMongo(process.env.MONGODB_URI);
 
-  const userStore = new MongoStorage(UserModel);
+  const userStore = new MongoStorage<User>(UserModel);
   const userId = new Types.ObjectId();
-  const insertedUser = await userStore.insert({
+  const user = {
     _id: userId,
     name: 'Alex',
     email: 'alex@example.com',
-  });
+  }
+  const insertedUser = await userStore.insert(user);
   const foundUser = await userStore.findById(String(userId));
 
   assert(insertedUser?._id.equals(userId) === true, 'insert user check');
   assert(foundUser?.email === insertedUser.email, 'findById user check');
 
+  const cache = new RedisHashCache<User>({client: redisClient, storageKey: 'users'});
+  const userRepository = new RepositoryBuilder<User, UserRepository>(UserRepository)
+    .setStorage(userStore)
+    .setCache(cache)
+    .build();
+    
+  {
+    const userId = String(insertedUser._id);
+    const repositoryUser = await userRepository.findById(userId);
+    assert(repositoryUser?.email === insertedUser.email, 'repository findById user check');
+    const deleted = await userRepository.deleteById(userId);
+    assert(deleted);
+    {
+      const repositoryUser = await userRepository.findById(userId);
+      assert(repositoryUser === null);
+      const created = await userRepository.insert(user);
+      assert(created);
+      {
+        const repositoryUser = await userRepository.findById(userId);
+        assert(repositoryUser);
+      }
+
+      await userRepository.insert(user).catch(e => {
+        if (e instanceof Error) {
+          assert(e.message.includes('duplicate'))
+        }
+      })
+    }
+ }
 
 
 
   console.log('finished check');
   await mongoConnection.close();
-  redis.close();
+  redisClient.close();
 })();
 
 

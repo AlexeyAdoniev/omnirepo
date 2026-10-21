@@ -28,7 +28,8 @@
     "test:unit": "vitest run test/unit",
     "test:integration": "vitest run test/integration --passWithNoTests",
     "typecheck": "tsc -p tsconfig.test.json",
-    "dev": "yarn build && node dist/index.js"
+    "dev": "yarn build && node dist/index.js",
+    "sandbox": "sudo systemctl stop redis-server && docker build -t omnirepo-sandbox . && docker run --rm -p 27017:27017 -p 6379:6379 omnirepo-sandbox"
   },
   "devDependencies": {
     "@types/node": "^26.4.1",

@@ -1,6 +1,6 @@
 import mongoose, {model, Schema} from 'mongoose';
 import type {InferRawDocType} from 'mongoose';
-import {Flatten} from '../../src/types'
+import type {Types} from 'mongoose';
 
 
 export default function connect(url: string): Promise<mongoose.Connection> {
@@ -30,8 +30,9 @@ const schemaDefinition = {
   },
 } as const;
 
-// Flatten is adapter generic to get rid of mongoose interfaces mismatch
-type User =  Flatten<InferRawDocType<typeof schemaDefinition>>;
+type User = InferRawDocType<typeof schemaDefinition> & {
+  _id: Types.ObjectId;
+};
 
 const userSchema = new Schema<User>(schemaDefinition);
 const UserModel = model<User>('User', userSchema);

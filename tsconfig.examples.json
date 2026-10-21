@@ -5,7 +5,9 @@
     "declarationMap": false,
     "outDir": "dist-examples",
     "rootDir": ".",
-    "sourceMap": false
+    "sourceMap": false,
+    "noUnusedLocals": false,
+    "verbatimModuleSyntax": false,
   },
   "include": ["src/**/*.ts", "examples/**/*.ts"]
 }
