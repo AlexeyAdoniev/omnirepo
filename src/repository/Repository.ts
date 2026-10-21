@@ -107,6 +107,19 @@ class BaseRepository<Entity extends WithId> extends EventTarget {
 }
 
 class Repository<Entity extends WithId> extends BaseRepository<Entity> {
+  private enrichEntity(
+    result: Promise<Nullable<Entity>>,
+  ) {
+    return chain(result).next(async entity => {
+      if (!entity) {
+        return null;
+      }
+
+      const [enrichedEntity] = await this.enrichEntities([entity]);
+      return enrichedEntity ?? null;
+    });
+  }
+
   async all(): Promise<Map<string, Entity> | null> {
     const cached = await this.runCacheOperation(cache => cache.getAll());
 
@@ -115,6 +128,7 @@ class Repository<Entity extends WithId> extends BaseRepository<Entity> {
     }
 
     return chain(this.safeLoad())
+      .next(entities => this.enrichEntities(entities))
       .map(mapEntities)
       .execute(entities => this.runCacheOperation(cache => cache.setAll(entities)));
   }
@@ -126,37 +140,31 @@ class Repository<Entity extends WithId> extends BaseRepository<Entity> {
       return cached;
     }
 
-    const entity = await this.storage.findById(id);
-
-    if (entity) {
-      await this.runCacheOperation(cache => cache.set(id, entity));
-    }
-
-    return entity;
+    return this.enrichEntity(this.storage.findById(id))
+      .execute(entity =>
+        entity ? this.runCacheOperation(cache => cache.set(id, entity)) : null,
+      );
   }
 
   async updateById(
     id: string,
     updates: Partial<Entity>,
   ): Promise<Nullable<Entity>> {
-    const entity = await this.storage.updateById(id, updates);
-    if (entity) {
-      await this.runCacheOperation(cache => cache.set(id, entity));
-    }
-    return entity;
+    return this.enrichEntity(this.storage.updateById(id, updates))
+      .execute(entity =>
+        entity ? this.runCacheOperation(cache => cache.set(id, entity)) : null,
+      );
   }
 
   async insert(entity: Entity): Promise<Nullable<Entity>> {
-    const inserted = await this.storage.insert(entity);
-    if (inserted === null) {
-      return null;
-    }
-
-    await this.runCacheOperation(cache =>
-      cache.set(String(inserted._id), inserted),
-    );
-
-    return inserted;
+    return this.enrichEntity(this.storage.insert(entity))
+      .execute(inserted =>
+        inserted
+          ? this.runCacheOperation(cache =>
+              cache.set(String(inserted._id), inserted),
+            )
+          : null,
+      );
   }
 
   async deleteById(id: string): Promise<Nullable<Entity>> {
