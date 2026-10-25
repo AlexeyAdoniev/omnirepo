@@ -1,6 +1,10 @@
 {
   "name": "omnirepo",
   "version": "0.1.0",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/AlexeyAdoniev/omnirepo.git"
+  },
   "description": "TypeScript repository abstraction with pluggable storage and cache adapters.",
   "license": "MIT",
   "private": true,
