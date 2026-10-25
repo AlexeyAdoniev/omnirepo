@@ -11,7 +11,14 @@ export interface Logger {
   info(message: string): void;
 }
 
-export interface FindOptions {
+
+
+export interface RepositoryReadOptions {
+  bypassCache?: boolean;
+  pagination?: PaginationOptions;
+}
+
+export interface PaginationOptions {
   limit?: number;
   skip?: number;
 }
@@ -27,9 +34,9 @@ export interface Cache<Entity> {
 }
 
 export interface Storage<Entity extends WithId> {
-  count(): Promise<number>;
+  count(query?: Partial<Entity>): Promise<number>;
   findById(id: string): Promise<Nullable<Entity>>;
-  find(query: Partial<Entity>, options?: FindOptions): Promise<Entity[]>;
+  find(query: Partial<Entity>, options?: PaginationOptions): Promise<Entity[]>;
   updateById(id: string, entity: Partial<Entity>): Promise<Nullable<Entity>>;
   insert(entity: Entity): Promise<Nullable<Entity>>;
   deleteById(id: string): Promise<Nullable<Entity>>;

@@ -2,7 +2,7 @@ import {Repository} from '../../src/repository/Repository.js';
 import {RepositoryBuilder} from '../../src/repository/builder.js';
 import {RedisHashCache} from '../../src/stores/RedisHashCache.js';
 import type {RedisHashCacheClient} from '../../src/stores/RedisHashCache.js';
-import type {Storage, FindOptions, Nullable} from '../../src/types.js';
+import type {Storage, PaginationOptions, Nullable, Cache} from '../../src/types.js';
 import RedisStore from './redis.js';
 import type {Model, UpdateQuery} from 'mongoose';
 import { Types} from 'mongoose';
@@ -10,6 +10,7 @@ import connectMongo, {UserModel} from './mongo.js';
 import type {User} from './mongo.js';
 import {config} from 'dotenv';
 import assert from 'node:assert/strict'
+//import { chain } from '../../src/helpers.js';
 config();
 
 
@@ -63,15 +64,15 @@ class Redis implements RedisHashCacheClient {
 {
   constructor(private readonly model: Model<Entity>) {}
 
-  count(): Promise<number> {
-    return this.model.countDocuments().exec();
+  count(query: Partial<Entity> = {}): Promise<number> {
+    return this.model.countDocuments(query).exec();
   }
 
   findById(id: string): Promise<Nullable<Entity>> {
     return this.model.findById(this.toObjectId(id)).lean<Entity>().exec();
   }
 
-  find(query: Partial<Entity>, options?: FindOptions): Promise<Entity[]> {
+  find(query: Partial<Entity>, options?: PaginationOptions): Promise<Entity[]> {
     const request = this.model.find(query);
 
     if (options?.skip !== undefined) {
@@ -113,7 +114,11 @@ class Redis implements RedisHashCacheClient {
 }
 
 class UserRepository extends Repository<User> {
-
+  // protected enrichEntities(entity: User): Promise<User>;
+  // protected enrichEntities(entities: User[]): Promise<User[]>;
+  // protected enrichEntities(entityOrEntities: Entity | Entity[]): Promise<Entity | Entity[]> {
+    
+  // }
 }
 
 (async () => {
@@ -163,6 +168,9 @@ class UserRepository extends Repository<User> {
       {
         const repositoryUser = await userRepository.findById(userId);
         assert(repositoryUser);
+        const repositoryUsers = await userRepository.all({"email": user.email});
+        assert(repositoryUsers);
+        assert([...repositoryUsers.values()].every(i => i.email === user.email));
       }
 
       await userRepository.insert(user).catch(e => {
@@ -171,7 +179,9 @@ class UserRepository extends Repository<User> {
         }
       })
     }
+
  }
+
 
 
 

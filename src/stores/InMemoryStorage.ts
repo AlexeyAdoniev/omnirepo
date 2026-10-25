@@ -14,8 +14,10 @@ export class InMemoryStorage<Entity extends {_id: unknown}>
       }
     }
   }
-  async count(): Promise<number> {
-    return this.entries.size;
+  async count(query: Partial<Entity> = {}): Promise<number> {
+    return Array.from(this.entries.values()).filter(entity =>
+      this.matchesQuery(entity, query),
+    ).length;
   }
 
   async findById(id: string): Promise<Entity | null> {

@@ -54,4 +54,20 @@ describe('chain', () => {
     expect(caughtError).toBe(rethrownError);
     expect(wasExecuted).toBe(false);
   });
+
+  it('splits async chain execution', async () => {
+    const observed1: string[] = [];
+    const observed2: string[] = [];
+
+    const result =  chain(Promise.resolve(2))
+      .map(value => `value-${value}`);
+
+      await Promise.all([
+        result.next(async value => `${value}-enriched1`).execute(value => observed1.push(value)),
+        result.next(async value => `${value}-enriched2`).execute(value => observed2.push(value)),
+      ]);
+
+        expect(observed1).toEqual(['value-2-enriched1']);
+        expect(observed2).toEqual(['value-2-enriched2']);
+  });
 });

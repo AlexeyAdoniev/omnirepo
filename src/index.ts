@@ -7,9 +7,9 @@ export {RedisHashCache} from './stores/RedisHashCache.js';
 export type {
   Cache,
   DegradationPolicy,
-  FindOptions,
   Logger,
   Nullable,
+  RepositoryReadOptions,
   Storage,
   WithId,
 } from './types.js';

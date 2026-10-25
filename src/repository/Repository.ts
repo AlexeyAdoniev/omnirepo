@@ -3,10 +3,21 @@ import type {
   DegradationPolicy,
   Logger,
   Nullable,
+  PaginationOptions,
+  RepositoryReadOptions,
   Storage,
   WithId,
 } from '../types.js';
 import {chain, mapEntities} from '../helpers.js';
+import {
+  ENTITY_COUNT_EXCEEDS_MAXIMUM,
+  INVALID_MAXIMUM_ENTITY_COUNT,
+  INVALID_PAGINATION_LIMIT,
+  INVALID_PAGINATION_SKIP,
+  MAXIMUM_ENTITY_COUNT_REQUIRED,
+  PAGINATION_LIMIT_EXCEEDS_MAXIMUM,
+  STORAGE_RETURNED_TOO_MANY_ENTITIES,
+} from './RepositoryErrors.js';
 
 const SILENT_LOGGER: Logger = {
   error: () => {},
@@ -66,43 +77,67 @@ class BaseRepository<Entity extends WithId> extends EventTarget {
     }
   }
 
-  protected async safeLoad(query: Partial<Entity> = {}): Promise<Entity[]> {
-    if (this.maximumEntityCount === undefined) {
-      throw new Error('Cache warm-up failed: Maximum entity count is not defined');
-    }
+  protected async safeLoad(
+  query: Partial<Entity> = {},
+  { limit, skip = 0 }: PaginationOptions = {},
+): Promise<Entity[]> {
+  const maximumEntityCount = this.maximumEntityCount;
 
-    const count = await this.storage.count();
-
-    if (count > this.maximumEntityCount) {
-      throw new Error('Cache warm-up failed: Entity count exceeds maximum');
-    }
-
-    const entities = await this.storage.find(query, {
-      limit: this.maximumEntityCount,
-    });
-
-    if (entities.length > this.maximumEntityCount) {
-      throw new Error('Cache warm-up failed: Retrieved entity count exceeds maximum');
-    }
-
-    return entities;
+  if (limit !== undefined && (!Number.isSafeInteger(limit) || limit < 0)) {
+    throw INVALID_PAGINATION_LIMIT;
   }
+
+  if (!Number.isSafeInteger(skip) || skip < 0) {
+    throw INVALID_PAGINATION_SKIP;
+  }
+
+  if (
+    maximumEntityCount !== undefined &&
+    (!Number.isSafeInteger(maximumEntityCount) || maximumEntityCount < 0)
+  ) {
+    throw INVALID_MAXIMUM_ENTITY_COUNT;
+  }
+
+  const isLoadingAll = limit === undefined;
+
+  if (isLoadingAll && maximumEntityCount === undefined) {
+    throw MAXIMUM_ENTITY_COUNT_REQUIRED;
+  }
+
+  if (
+    limit !== undefined &&
+    maximumEntityCount !== undefined &&
+    limit > maximumEntityCount
+  ) {
+    throw PAGINATION_LIMIT_EXCEEDS_MAXIMUM;
+  }
+
+  const effectiveLimit = limit ?? maximumEntityCount!;
+
+  // Fetch one extra entity when loading all results so we can detect
+  // overflow without retrieving the entire result set into memory.
+  const fetchLimit = isLoadingAll
+    ? effectiveLimit + 1
+    : effectiveLimit;
+
+  const entities = await this.storage.find(query, {
+    limit: fetchLimit,
+    skip,
+  });
+
+  if (entities.length > effectiveLimit) {
+    if (isLoadingAll) {
+      throw ENTITY_COUNT_EXCEEDS_MAXIMUM;
+    }
+
+    throw STORAGE_RETURNED_TOO_MANY_ENTITIES;
+  }
+
+  return entities;
+}
 
   protected async enrichEntities(entities: Entity[]): Promise<Entity[]> {
     return entities;
-  }
-
-  async warmUpCache(query: Partial<Entity> = {}): Promise<void> {
-    await chain(this.safeLoad(query))
-      .next(entities => this.enrichEntities(entities))
-      .map(mapEntities)
-      .catch(error => {
-        this.logger.error('Warm-up cache operation failed', error);
-        throw error;
-      })
-      .execute(entities =>{
-        this.runCacheOperation(cache => cache.setAll(entities));
-      });
   }
 }
 
@@ -120,21 +155,35 @@ class Repository<Entity extends WithId> extends BaseRepository<Entity> {
     });
   }
 
-  async all(): Promise<Map<string, Entity> | null> {
-    const cached = await this.runCacheOperation(cache => cache.getAll());
+  async all(
+    query: Partial<Entity> = {},
+    options: RepositoryReadOptions = {},
+  ): Promise<Map<string, Entity> | null> {
+    const cached = options.bypassCache
+      ? null
+      : await this.runCacheOperation(cache => cache.getAll());
 
     if (cached?.size) {
       return cached;
     }
 
-    return chain(this.safeLoad())
+    return chain(this.safeLoad(query, options.pagination))
       .next(entities => this.enrichEntities(entities))
       .map(mapEntities)
-      .execute(entities => this.runCacheOperation(cache => cache.setAll(entities)));
+      .execute(entities =>
+        options.bypassCache
+          ? null
+          : this.runCacheOperation(cache => cache.setAll(entities)),
+      );
   }
 
-  async findById(id: string): Promise<Nullable<Entity>> {
-    const cached = await this.runCacheOperation(cache => cache.get(id));
+  async findById(
+    id: string,
+    options: RepositoryReadOptions = {},
+  ): Promise<Nullable<Entity>> {
+    const cached = options.bypassCache
+      ? null
+      : await this.runCacheOperation(cache => cache.get(id));
 
     if (cached) {
       return cached;
@@ -142,7 +191,9 @@ class Repository<Entity extends WithId> extends BaseRepository<Entity> {
 
     return this.enrichEntity(this.storage.findById(id))
       .execute(entity =>
-        entity ? this.runCacheOperation(cache => cache.set(id, entity)) : null,
+        entity && !options.bypassCache
+          ? this.runCacheOperation(cache => cache.set(id, entity))
+          : null,
       );
   }
 

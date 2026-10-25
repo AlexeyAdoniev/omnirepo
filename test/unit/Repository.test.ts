@@ -30,6 +30,33 @@ describe('Repository', () => {
     await expect(cache.get('0')).resolves.toEqual(inserted);
   });
 
+  it('bypasses cache reads and writes for all and findById when requested', async () => {
+    const entities: Entity[] = [{_id: 1, name: 'storage'}];
+    const storage = new InMemoryStorage<Entity>(entities);
+    const cache = new InMemoryMapCache<Entity>();
+    const getAll = vi.spyOn(cache, 'getAll');
+    const setAll = vi.spyOn(cache, 'setAll');
+    const get = vi.spyOn(cache, 'get');
+    const set = vi.spyOn(cache, 'set');
+    const repository = new RepositoryBuilder<Entity>(Repository)
+      .setStorage(storage)
+      .setCache(cache)
+      .setMaximumEntityCount(10)
+      .build();
+
+    await expect(repository.all({}, {bypassCache: true})).resolves.toEqual(
+      new Map([['1', entities[0]]]),
+    );
+    await expect(repository.findById('1', {bypassCache: true})).resolves.toEqual(
+      entities[0],
+    );
+
+    expect(getAll).not.toHaveBeenCalled();
+    expect(setAll).not.toHaveBeenCalled();
+    expect(get).not.toHaveBeenCalled();
+    expect(set).not.toHaveBeenCalled();
+  });
+
   it('allows an empty repository when the maximum entity count is zero', async () => {
     const repository = new RepositoryBuilder<Entity>(Repository)
       .setStorage(new InMemoryStorage<Entity>())
@@ -51,18 +78,18 @@ describe('Repository', () => {
       .setStorage(storage)
       .setCache(cache);
 
-    await expect(builder.build().warmUpCache()).rejects.toThrow(
+    await expect(builder.build().all()).rejects.toThrow(
       'Cache warm-up failed: Maximum entity count is not defined',
     );
 
     builder.setMaximumEntityCount(10);
 
-    await expect(builder.build().warmUpCache()).rejects.toThrow(
+    await expect(builder.build().all()).rejects.toThrow(
       'Cache warm-up failed: Entity count exceeds maximum',
     );
 
     const repository = builder.setMaximumEntityCount(11).build();
-    await repository.warmUpCache();
+    await repository.all();
 
     const find = vi.spyOn(storage, 'find');
     const count = vi.spyOn(storage, 'count');
