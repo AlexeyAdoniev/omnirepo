@@ -1,4 +1,4 @@
-import type {Storage, FindOptions} from '../types.js';
+import type {PaginationOptions, Storage} from '../types.js';
 
 export class InMemoryStorage<Entity extends {_id: unknown}>
   implements Storage<Entity>
@@ -24,7 +24,7 @@ export class InMemoryStorage<Entity extends {_id: unknown}>
     return this.entries.get(id) ?? null;
   }
 
-  async find(query: Partial<Entity>, options?: FindOptions): Promise<Entity[]> {
+  async find(query: Partial<Entity>, options?: PaginationOptions): Promise<Entity[]> {
     const skip = options?.skip ?? 0;
     return Array.from(this.entries.values()).filter(entity =>
       this.matchesQuery(entity, query),
