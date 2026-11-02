@@ -39,6 +39,7 @@ jobs:
         run: |
           mkdir -p "$RUNNER_TEMP/omnirepo-package"
           cp package.json "$RUNNER_TEMP/omnirepo-package/package.json"
+          cp README.md "$RUNNER_TEMP/omnirepo-package/README.md"
           cp -R dist "$RUNNER_TEMP/omnirepo-package/dist"
 
           git config user.name 'github-actions[bot]'
