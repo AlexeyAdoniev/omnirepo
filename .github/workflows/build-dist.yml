@@ -48,6 +48,6 @@ jobs:
           cp "$RUNNER_TEMP/omnirepo-package/README.md" README.md
           cp "$RUNNER_TEMP/omnirepo-package/package.json" package.json
           cp -R "$RUNNER_TEMP/omnirepo-package/dist" dist
-          git add package.json dist
+          git add package.json dist README.md
           git commit -m 'Build dist package'
           git push origin HEAD:dist --force
