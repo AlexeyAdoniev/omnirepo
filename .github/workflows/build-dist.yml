@@ -44,6 +44,7 @@ jobs:
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git switch --orphan dist
+          cp "$RUNNER_TEMP/omnirepo-package/README.md" README.md
           cp "$RUNNER_TEMP/omnirepo-package/package.json" package.json
           cp -R "$RUNNER_TEMP/omnirepo-package/dist" dist
           git add package.json dist
