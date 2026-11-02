@@ -1,0 +1,51 @@
+{
+  "name": "omnirepo",
+  "version": "0.1.0",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/AlexeyAdoniev/omnirepo.git"
+  },
+  "description": "TypeScript repository abstraction with pluggable storage and cache adapters.",
+  "license": "MIT",
+  "private": true,
+  "type": "module",
+  "sideEffects": false,
+  "files": [
+    "dist"
+  ],
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "engines": {
+    "node": ">=20.11.0"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "clean": "rm -rf dist",
+    "lint": "eslint .",
+    "test": "vitest run",
+    "test:unit": "vitest run test/unit",
+    "test:integration": "vitest run test/integration --passWithNoTests",
+    "typecheck": "tsc -p tsconfig.test.json",
+    "dev": "yarn build && node dist/index.js",
+    "sandbox": "sudo systemctl stop redis-server && docker build -t omnirepo-sandbox . && docker run --rm -p 27017:27017 -p 6379:6379 omnirepo-sandbox"
+  },
+  "devDependencies": {
+    "@types/node": "^26.4.1",
+    "@typescript-eslint/eslint-plugin": "^8.69.0",
+    "@typescript-eslint/parser": "^8.69.0",
+    "dotenv": "^18.0.4",
+    "eslint": "^10.8.1",
+    "ioredis": "^6.0.0",
+    "mongoose": "^9.9.4",
+    "typescript": "^5.9.3",
+    "vite": "6.4.3",
+    "vitest": "4.1.11"
+  },
+  "dependencies": {}
+}
