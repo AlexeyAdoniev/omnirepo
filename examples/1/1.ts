@@ -10,16 +10,28 @@ import connectMongo, {UserModel} from './mongo.js';
 import type {User} from './mongo.js';
 import {config} from 'dotenv';
 import assert from 'node:assert/strict'
-//import { chain } from '../../src/helpers.js';
+import { InMemoryMapCache } from '../../src/stores/InMemoryMapCache.js';
 config();
+
+async function setRedisProxyEnabled(enabled: boolean): Promise<void> {
+  const response = await fetch('http://127.0.0.1:8474/proxies/redis', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({enabled}),
+  });
+
+  if (!response.ok) {
+    throw new Error(`Could not ${enabled ? 'enable' : 'disable'} Redis proxy: ${response.status}`);
+  }
+}
 
 
 
 class Redis implements RedisHashCacheClient {
   private readonly redis: RedisStore;
 
-  constructor(url: string) {
-    this.redis = new RedisStore(url);
+  constructor(url: string, maxRetriesPerRequest?: number) {
+    this.redis = new RedisStore(url, maxRetriesPerRequest? {maxRetriesPerRequest }: undefined);
   }
 
   ping(): Promise<string> {
@@ -31,7 +43,7 @@ class Redis implements RedisHashCacheClient {
   }
 
   hgetField(key: string, field: string): Promise<string | null> {
-    return this.redis.hgetField(key, field);
+    return this.redis.hgetField(key, field)
   }
 
   hgetAll(key: string): Promise<Record<string, string>> {
@@ -130,7 +142,7 @@ class UserRepository extends Repository<User> {
     throw new Error('MONGODB_URI missing');
   }
 
-  const redisClient = new Redis(process.env.REDIS_URL);
+  const redisClient = new Redis(process.env.REDIS_URL, 2);
   assert(await redisClient.ping() === 'PONG', 'redis check');
 
   const mongoConnection = await connectMongo(process.env.MONGODB_URI);
@@ -149,9 +161,15 @@ class UserRepository extends Repository<User> {
   assert(foundUser?.email === insertedUser.email, 'findById user check');
 
   const cache = new RedisHashCache<User>({client: redisClient, storageKey: 'users'});
+  const fallbackCache = new InMemoryMapCache<User>(
+        new Map(),
+      );
   const userRepository = new RepositoryBuilder<User, UserRepository>(UserRepository)
     .setStorage(userStore)
     .setCache(cache)
+    //.setLogger({"error": console.error, info: console.log})
+    //.setDegradationPolicy('fallback')
+    //.setFallbackCache(fallbackCache)
     .build();
     
   {
@@ -180,9 +198,22 @@ class UserRepository extends Repository<User> {
       })
     }
 
+    {
+      try {
+        await setRedisProxyEnabled(false);
+        await new Promise(r => setTimeout(r, 1000));
+        const repositoryUser = await userRepository.findById(userId);
+        console.log(repositoryUser?._id, 'repositoryUser');
+      } catch (e) {
+        console.log(e,'eeee');
+      } finally {
+        //await setRedisProxyEnabled(true);
+      }
+    }
  }
 
 
+ 
 
 
   console.log('finished check');

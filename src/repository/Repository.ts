@@ -62,7 +62,7 @@ class BaseRepository<Entity extends WithId> extends EventTarget {
     try {
       return await request(this.cache);
     } catch (error) {
-      this.logger.error('Cache operation failed', error);
+      this.logger.error('Cache operation failed: ', error);
 
       switch (this.degradationPolicy) {
         case 'fallback': {

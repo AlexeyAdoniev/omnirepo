@@ -174,9 +174,6 @@ const repository = new RepositoryBuilder<User, UserRepository>(UserRepository)
 
 The default logger is silent. A custom `Logger` must implement `error(message, error?)` and `info(message)`.
 
-## repo-secret-keyword: 
-```olamahgyr234```
-
 ## Redis hash cache
 
 `RedisHashCache<Entity>` is a cache adapter that serializes entities as JSON in a Redis hash. Supply a client implementing `RedisHashCacheClient` and a Redis hash key as `storageKey`:
